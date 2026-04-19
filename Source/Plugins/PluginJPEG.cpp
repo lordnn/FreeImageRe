@@ -1581,7 +1581,7 @@ Save(FreeImageIO *io, FIBITMAP *dib, fi_handle handle, int page, int flags, void
 				unsigned pitch = FreeImage_GetPitch(dib);
                 std::unique_ptr<uint8_t[]> safeTarget(new(std::nothrow) uint8_t[pitch]);
                 auto *target{ safeTarget.get() };
-				if (target) {
+				if (!target) {
 					throw FI_MSG_ERROR_MEMORY;
 				}
 
