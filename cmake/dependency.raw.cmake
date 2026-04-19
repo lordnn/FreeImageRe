@@ -8,8 +8,8 @@ include(${EXTERNALPROJECT_INCLUDE_DIR}/external_project_common.cmake)
 
 
 FetchContent_Declare(RAW
-   URL "https://github.com/LibRaw/LibRaw/archive/refs/tags/0.22.0.zip"
-   URL_MD5 "1b3737262dfe9299a17ea8e667b0fb83"
+   URL "https://github.com/LibRaw/LibRaw/archive/refs/tags/0.22.1.zip"
+   URL_MD5 "9817d4f903f5812be7e839b24c38934b"
    DOWNLOAD_DIR "${EXTERNALPROJECT_SOURCE_ROOT}/raw"
    SOURCE_DIR "${EXTERNALPROJECT_SOURCE_PREFIX}/raw/source"
    DOWNLOAD_EXTRACT_TIMESTAMP TRUE

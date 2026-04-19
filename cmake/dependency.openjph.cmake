@@ -7,8 +7,8 @@ include(${EXTERNALPROJECT_INCLUDE_DIR}/external_project_common.cmake)
 
 ExternalProject_Add(OPENJPH
     PREFIX ${EXTERNALPROJECT_BINARY_ROOT}/openjph
-    URL "https://github.com/aous72/OpenJPH/archive/refs/tags/0.26.0.zip"
-    URL_MD5 "8a26d7e57e78b5e06c7a4737ace63b5b"
+    URL "https://github.com/aous72/OpenJPH/archive/refs/tags/0.27.0.zip"
+    URL_MD5 "c073bd13517c3b26bf5c17863fd94c1b"
     DOWNLOAD_DIR "${EXTERNALPROJECT_SOURCE_ROOT}/openjph"
     SOURCE_DIR "${EXTERNALPROJECT_SOURCE_PREFIX}/openjph/source"
     BINARY_DIR "${EXTERNALPROJECT_BINARY_ROOT}/openjph/build"
@@ -27,7 +27,7 @@ ExternalProject_Get_Property(OPENJPH INSTALL_DIR)
 add_library(LibOpenJPH INTERFACE)
 add_dependencies(LibOpenJPH OPENJPH)
 if (MSVC)
-    target_link_libraries(LibOpenJPH INTERFACE ${INSTALL_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}openjph.0.26${CMAKE_STATIC_LIBRARY_SUFFIX})
+    target_link_libraries(LibOpenJPH INTERFACE ${INSTALL_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}openjph.0.27${CMAKE_STATIC_LIBRARY_SUFFIX})
 else()
     target_link_libraries(LibOpenJPH INTERFACE ${INSTALL_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}openjph${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif()

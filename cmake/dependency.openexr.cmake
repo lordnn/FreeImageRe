@@ -14,8 +14,8 @@ find_package(Git REQUIRED) # needed by OpenEXR
 
 ExternalProject_Add(EXR
     PREFIX ${EXTERNALPROJECT_BINARY_ROOT}/openexr
-    URL "https://github.com/AcademySoftwareFoundation/openexr/archive/refs/tags/v3.4.4.zip"
-    URL_MD5 "23a4152db8b04ad484e9e1dd6638a662"
+    URL "https://github.com/AcademySoftwareFoundation/openexr/archive/refs/tags/v3.4.10.zip"
+    URL_MD5 "7c485810b90620589997a3212b69ed8b"
     DOWNLOAD_DIR "${EXTERNALPROJECT_SOURCE_ROOT}/openexr"
     SOURCE_DIR "${EXTERNALPROJECT_SOURCE_PREFIX}/openexr/source"
     BINARY_DIR "${EXTERNALPROJECT_BINARY_ROOT}/openexr/build"

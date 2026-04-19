@@ -51,6 +51,12 @@ Version 4.2.0:
  - Fixed crashes due to plugin object lifetime
  - Fixed backward compatible behaviour of the FreeImage_FIFSupports... functions in case of disabled plugins
  - Error-safe writing of output files in FreeImage_Save
+ - Updated turbojpeg till v3.1.4.1
+ - Updated jpegxl till v0.11.2
+ - Updated OpenEXR till v3.4.10
+ - Updated OpenJPH till v0.27.0
+ - Updated libpng till v1.6.58
+ - Updated libraw till v0.22.1
 
 Version 4.1.1:
  - Updated zlib till v1.3.2
