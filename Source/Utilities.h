@@ -139,11 +139,6 @@ typedef struct tagFILE_BGR {
 //   Template utility functions
 // ==========================================================
 
-/// Max function
-template <class T> T MAX(const T &a, const T &b) {
-	return (a > b) ? a: b;
-}
-
 /** This procedure computes minimum min and maximum max
  of n numbers using only (3n/2) - 2 comparisons.
  min = L[i1] and max = L[i2].
