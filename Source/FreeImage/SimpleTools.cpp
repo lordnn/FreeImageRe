@@ -7,7 +7,104 @@
 #include "SimpleTools.h"
 #include <cstring>
 #include <algorithm>
+#include "yato/types.h"
 
+namespace {
+
+struct YuvBrightness
+{
+    template <typename Ty_>
+    inline
+    auto operator()(const Ty_& p, std::enable_if_t<IsPixelType<Ty_>::value, void*> = nullptr)
+    {
+        return p.red;
+    }
+};
+
+template <typename PixelTy_, typename BrightnessOp_ = Brightness>
+std::tuple<PixelTy_*, PixelTy_*, double, double> FindMinMax(FIBITMAP* src, BrightnessOp_ brightnessOp = BrightnessOp_{})
+{
+    PixelTy_* minIt{}, * maxIt{};
+    double minVal = 0.0, maxVal = 0.0;
+    if (src) {
+        const unsigned h = FreeImage_GetHeight(src);
+        const unsigned w = FreeImage_GetWidth(src);
+        const unsigned pitch = FreeImage_GetPitch(src);
+        auto srcLine = yato::pointer_cast<uint8_t*>(FreeImage_GetBits(src));
+        for (unsigned j = 0; j < h; ++j, srcLine += pitch) {
+            auto pixIt = yato::pointer_cast<PixelTy_*>(srcLine);
+            for (unsigned i = 0; i < w; ++i, ++pixIt) {
+                if (IsNan(*pixIt)) {
+                    continue;
+                }
+                const auto b = static_cast<double>(brightnessOp(*pixIt));
+                if (!minIt || !maxIt) {
+                    minIt  = maxIt = pixIt;
+                    minVal = maxVal = b;
+                }
+                else {
+                    if (b < minVal) {
+                        minIt = pixIt;
+                        minVal = b;
+                    }
+                    if (maxVal < b) {
+                        maxIt = pixIt;
+                        maxVal = b;
+                    }
+                }
+            }
+        }
+    }
+    return std::make_tuple(minIt, maxIt, minVal, maxVal);
+}
+
+template <typename PixelType_>
+inline constexpr
+void PixelFill(PixelType_& p, const ToValueType<PixelType_>& v)
+{
+    SetChannel<0>(p, v);
+    SetChannel<1>(p, v);
+    SetChannel<2>(p, v);
+    SetChannel<3>(p, v);
+}
+
+template <typename PixelType_>
+void FindMinMaxValueImpl(FIBITMAP* src, void* out_min_value, void* out_max_value)
+{
+	PixelType_ minVal, maxVal;
+	PixelFill(minVal, std::numeric_limits<ToValueType<PixelType_>>::max());
+	PixelFill(maxVal, std::numeric_limits<ToValueType<PixelType_>>::lowest());
+
+	const unsigned width = FreeImage_GetWidth(src);
+	const unsigned height = FreeImage_GetHeight(src);
+	const unsigned src_pitch = FreeImage_GetPitch(src);
+
+	uint8_t* src_bits = FreeImage_GetBits(src);
+	for (unsigned y = 0; y < height; ++y) {
+		auto src_pixel = static_cast<PixelType_*>(static_cast<void*>(src_bits));
+		for (unsigned x = 0; x < width; ++x) {
+			const PixelType_ val = src_pixel[x];
+			SetChannel<0>(minVal, std::min(GetChannel<0>(minVal), GetChannel<0>(val)));
+			SetChannel<1>(minVal, std::min(GetChannel<1>(minVal), GetChannel<1>(val)));
+			SetChannel<2>(minVal, std::min(GetChannel<2>(minVal), GetChannel<2>(val)));
+			SetChannel<3>(minVal, std::min(GetChannel<3>(minVal), GetChannel<3>(val)));
+			SetChannel<0>(maxVal, std::max(GetChannel<0>(maxVal), GetChannel<0>(val)));
+			SetChannel<1>(maxVal, std::max(GetChannel<1>(maxVal), GetChannel<1>(val)));
+			SetChannel<2>(maxVal, std::max(GetChannel<2>(maxVal), GetChannel<2>(val)));
+			SetChannel<3>(maxVal, std::max(GetChannel<3>(maxVal), GetChannel<3>(val)));
+		}
+		src_bits += src_pitch;
+	}
+
+	if (out_min_value) {
+		*static_cast<PixelType_*>(out_min_value) = minVal;
+	}
+	if (out_max_value) {
+		*static_cast<PixelType_*>(out_max_value) = maxVal;
+	}
+}
+
+} // unnamed namespace
 
 FIBOOL DLL_CALLCONV
 FreeImage_FindMinMax(FIBITMAP* dib, double* min_brightness, double* max_brightness, void** min_ptr, void** max_ptr)
@@ -133,47 +230,6 @@ FreeImage_FindMinMax(FIBITMAP* dib, double* min_brightness, double* max_brightne
 
 	return success ? TRUE : FALSE;
 }
-
-namespace
-{
-
-	template <typename PixelType_>
-	void FindMinMaxValueImpl(FIBITMAP* src, void* out_min_value, void* out_max_value)
-	{
-		PixelType_ minVal, maxVal;
-		PixelFill(minVal, std::numeric_limits<ToValueType<PixelType_>>::max());
-		PixelFill(maxVal, std::numeric_limits<ToValueType<PixelType_>>::lowest());
-
-		const unsigned width = FreeImage_GetWidth(src);
-		const unsigned height = FreeImage_GetHeight(src);
-		const unsigned src_pitch = FreeImage_GetPitch(src);
-
-		uint8_t* src_bits = FreeImage_GetBits(src);
-		for (unsigned y = 0; y < height; ++y) {
-			auto src_pixel = static_cast<PixelType_*>(static_cast<void*>(src_bits));
-			for (unsigned x = 0; x < width; ++x) {
-				const PixelType_ val = src_pixel[x];
-				SetChannel<0>(minVal, std::min(GetChannel<0>(minVal), GetChannel<0>(val)));
-				SetChannel<1>(minVal, std::min(GetChannel<1>(minVal), GetChannel<1>(val)));
-				SetChannel<2>(minVal, std::min(GetChannel<2>(minVal), GetChannel<2>(val)));
-				SetChannel<3>(minVal, std::min(GetChannel<3>(minVal), GetChannel<3>(val)));
-				SetChannel<0>(maxVal, std::max(GetChannel<0>(maxVal), GetChannel<0>(val)));
-				SetChannel<1>(maxVal, std::max(GetChannel<1>(maxVal), GetChannel<1>(val)));
-				SetChannel<2>(maxVal, std::max(GetChannel<2>(maxVal), GetChannel<2>(val)));
-				SetChannel<3>(maxVal, std::max(GetChannel<3>(maxVal), GetChannel<3>(val)));
-			}
-			src_bits += src_pitch;
-		}
-
-		if (out_min_value) {
-			*static_cast<PixelType_*>(out_min_value) = minVal;
-		}
-		if (out_max_value) {
-			*static_cast<PixelType_*>(out_max_value) = maxVal;
-		}
-	}
-
-} // namespace
 
 FIBOOL DLL_CALLCONV
 FreeImage_FindMinMaxValue(FIBITMAP* dib, void* min_value, void* max_value)

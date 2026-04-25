@@ -55,7 +55,6 @@ void BitmapTransform(FIBITMAP* dst, FIBITMAP* src, UnaryOperation_ unary_op)
 	}
 }
 
-
 template <typename Ty_>
 using IsIntPixelType = std::integral_constant<bool,
     std::is_same_v<Ty_, FIRGB8> ||
@@ -102,46 +101,6 @@ namespace details
 template <typename PixelType_>
 using ToValueType = typename details::ToValueTypeImpl<PixelType_>::type;
 
-
-namespace details
-{
-    template <typename Ty_>
-    struct ToWiderTypeImpl {};
-
-    template <> struct ToWiderTypeImpl<uint64_t> { using type = uint64_t; };
-    template <> struct ToWiderTypeImpl<int64_t>  { using type = int64_t; };
-    template <> struct ToWiderTypeImpl<uint32_t> { using type = uint64_t; };
-    template <> struct ToWiderTypeImpl<int32_t>  { using type = int64_t;  };
-    template <> struct ToWiderTypeImpl<uint16_t> { using type = uint32_t; };
-    template <> struct ToWiderTypeImpl<int16_t>  { using type = int32_t;  };
-    template <> struct ToWiderTypeImpl<uint8_t>  { using type = uint32_t;  };
-    template <> struct ToWiderTypeImpl<int8_t>   { using type = int32_t; };
-}
-
-template <typename Ty_>
-using ToWiderType = typename details::ToWiderTypeImpl<Ty_>::type;
-
-
-namespace details
-{
-    template <typename Ty_>
-    struct ToUnsignedTypeImpl {};
-
-    template <> struct ToUnsignedTypeImpl<uint64_t> { using type = uint64_t; };
-    template <> struct ToUnsignedTypeImpl<int64_t>  { using type = uint64_t; };
-    template <> struct ToUnsignedTypeImpl<uint32_t> { using type = uint32_t; };
-    template <> struct ToUnsignedTypeImpl<int32_t>  { using type = uint32_t; };
-    template <> struct ToUnsignedTypeImpl<uint16_t> { using type = uint16_t; };
-    template <> struct ToUnsignedTypeImpl<int16_t>  { using type = uint16_t; };
-    template <> struct ToUnsignedTypeImpl<uint8_t>  { using type = uint8_t;  };
-    template <> struct ToUnsignedTypeImpl<int8_t>   { using type = uint8_t;  };
-}
-
-template <typename Ty_>
-using ToUnsignedType = typename details::ToUnsignedTypeImpl<Ty_>::type;
-
-
-
 template <uint32_t Value_>
 using uint32_constant = std::integral_constant<uint32_t, Value_>;
 
@@ -158,26 +117,6 @@ template <> struct PixelChannelsNumber<FIRGBA8>  : public uint32_constant<4> {};
 template <> struct PixelChannelsNumber<FIRGB8>   : public uint32_constant<3> {};
 template <> struct PixelChannelsNumber<FICOMPLEX> : public uint32_constant<2> {};
 template <> struct PixelChannelsNumber<FICOMPLEXF> : public uint32_constant<2> {};
-
-namespace details
-{
-    template <typename PixelType_>
-    struct ToNoAlphaTypeImpl
-    {
-        using type = PixelType_;
-    };
-
-    template <> struct ToNoAlphaTypeImpl<FIRGBAF>  { using type = FIRGBF; };
-    template <> struct ToNoAlphaTypeImpl<FIRGBA32> { using type = FIRGB32; };
-    template <> struct ToNoAlphaTypeImpl<FIRGBA16> { using type = FIRGB16; };
-    template <> struct ToNoAlphaTypeImpl<FIRGBA8>  { using type = FIRGB8; };
-
-}
-
-template <typename PixelType_>
-using ToNoAlphaType = typename details::ToNoAlphaTypeImpl<PixelType_>::type;
-
-
 
 template <uint32_t ChannelIndex_, typename PixelType_>
 inline constexpr
@@ -199,61 +138,6 @@ ToValueType<PixelType_> GetChannel(const PixelType_& p, ToValueType<PixelType_> 
         return v;
     }
 }
-
-template <typename PixelType_>
-inline constexpr
-void PixelFill(PixelType_& p, const ToValueType<PixelType_>& v)
-{
-    SetChannel<0>(p, v);
-    SetChannel<1>(p, v);
-    SetChannel<2>(p, v);
-    SetChannel<3>(p, v);
-}
-
-template <typename PixelType_, typename BinaryOperation_>
-inline constexpr
-auto PixelReduce(const PixelType_& p, ToValueType<PixelType_> init, BinaryOperation_&& op)
-{
-    constexpr uint32_t channelsNumber = PixelChannelsNumber<PixelType_>::value;
-    if constexpr (channelsNumber > 0) {
-        init = op(std::move(init), GetChannel<0>(p));
-    }
-    if constexpr (channelsNumber > 1) {
-        init = op(std::move(init), GetChannel<1>(p));
-    }
-    if constexpr (channelsNumber > 2) {
-        init = op(std::move(init), GetChannel<2>(p));
-    }
-    if constexpr (channelsNumber > 3) {
-        init = op(std::move(init), GetChannel<3>(p));
-    }
-    return init;
-}
-
-template <typename PixelType_>
-inline constexpr
-auto PixelMin(const PixelType_& p, ToValueType<PixelType_> init = std::numeric_limits<ToValueType<PixelType_>>::max())
-{
-    return PixelReduce(p, init, [](const auto& lhs, const auto& rhs) { return std::min(lhs, rhs); });
-}
-
-template <typename PixelType_>
-inline constexpr
-auto PixelMax(const PixelType_& p, ToValueType<PixelType_> init = std::numeric_limits<ToValueType<PixelType_>>::lowest())
-{
-    return PixelReduce(p, init, [](const auto& lhs, const auto& rhs) { return std::max(lhs, rhs); });
-}
-
-template <typename PixelType_>
-inline constexpr
-auto StripAlpha(PixelType_&& p)
-{
-    return ToNoAlphaType<PixelType_>(std::forward<PixelType_>(p));
-}
-
-
-
-
 
 inline
 bool IsNan(float p) {
@@ -283,8 +167,6 @@ std::enable_if_t<std::is_integral_v<Ty_> || IsIntPixelType<Ty_>::value, bool> Is
     return false;
 }
 
-
-
 struct Brightness
 {
     template <typename Ty_>
@@ -301,55 +183,5 @@ struct Brightness
         return YuvJPEG::Y(p.red, p.green, p.blue);
     }
 };
-
-struct YuvBrightness
-{
-    template <typename Ty_>
-    inline
-    auto operator()(const Ty_& p, std::enable_if_t<IsPixelType<Ty_>::value, void*> = nullptr)
-    {
-        return p.red;
-    }
-};
-
-
-template <typename PixelTy_, typename BrightnessOp_ = Brightness>
-std::tuple<PixelTy_*, PixelTy_*, double, double> FindMinMax(FIBITMAP* src, BrightnessOp_ brightnessOp = BrightnessOp_{})
-{
-    PixelTy_* minIt{}, * maxIt{};
-    double minVal = 0.0, maxVal = 0.0;
-    if (src) {
-        const unsigned h = FreeImage_GetHeight(src);
-        const unsigned w = FreeImage_GetWidth(src);
-        const unsigned pitch = FreeImage_GetPitch(src);
-        auto srcLine = static_cast<uint8_t*>(static_cast<void*>(FreeImage_GetBits(src)));
-        for (unsigned j = 0; j < h; ++j, srcLine += pitch) {
-            auto pixIt = static_cast<PixelTy_*>(static_cast<void*>(srcLine));
-            for (unsigned i = 0; i < w; ++i, ++pixIt) {
-                if (IsNan(*pixIt)) {
-                    continue;
-                }
-                const auto b = static_cast<double>(brightnessOp(*pixIt));
-                if (!minIt || !maxIt) {
-                    minIt  = maxIt = pixIt;
-                    minVal = maxVal = b;
-                }
-                else {
-                    if (b < minVal) {
-                        minIt = pixIt;
-                        minVal = b;
-                    }
-                    if (maxVal < b) {
-                        maxIt = pixIt;
-                        maxVal = b;
-                    }
-                }
-            }
-        }
-    }
-    return std::make_tuple(minIt, maxIt, minVal, maxVal);
-}
-
-
 
 #endif //FREEIMAGE_SIMPLE_TOOLS_H_
