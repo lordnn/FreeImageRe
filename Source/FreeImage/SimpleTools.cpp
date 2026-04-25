@@ -30,7 +30,7 @@ std::tuple<PixelTy_*, PixelTy_*, double, double> FindMinMax(FIBITMAP* src, Brigh
         const unsigned h = FreeImage_GetHeight(src);
         const unsigned w = FreeImage_GetWidth(src);
         const unsigned pitch = FreeImage_GetPitch(src);
-        auto srcLine = yato::pointer_cast<uint8_t*>(FreeImage_GetBits(src));
+        uint8_t *srcLine = FreeImage_GetBits(src);
         for (unsigned j = 0; j < h; ++j, srcLine += pitch) {
             auto pixIt = yato::pointer_cast<PixelTy_*>(srcLine);
             for (unsigned i = 0; i < w; ++i, ++pixIt) {
@@ -79,9 +79,9 @@ void FindMinMaxValueImpl(FIBITMAP* src, void* out_min_value, void* out_max_value
 	const unsigned height = FreeImage_GetHeight(src);
 	const unsigned src_pitch = FreeImage_GetPitch(src);
 
-	uint8_t* src_bits = FreeImage_GetBits(src);
+	const uint8_t* src_bits = FreeImage_GetBits(src);
 	for (unsigned y = 0; y < height; ++y) {
-		auto src_pixel = static_cast<PixelType_*>(static_cast<void*>(src_bits));
+		auto src_pixel = yato::pointer_cast<const PixelType_*>(src_bits);
 		for (unsigned x = 0; x < width; ++x) {
 			const PixelType_ val = src_pixel[x];
 			SetChannel<0>(minVal, std::min(GetChannel<0>(minVal), GetChannel<0>(val)));
