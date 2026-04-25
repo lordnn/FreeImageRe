@@ -1023,32 +1023,31 @@ SupportsNoPixels() {
 static void * DLL_CALLCONV
 Open(FreeImageIO *io, fi_handle handle, FIBOOL read) {
 	// wrapper for TIFF I/O
-	auto *fio = static_cast<fi_TIFFIO*>(malloc(sizeof(fi_TIFFIO)));
+	auto fio{ std::make_unique<fi_TIFFIO>() };
 	if (!fio) return nullptr;
 	fio->io = io;
 	fio->handle = handle;
 
 	if (read) {
-		fio->tif = TIFFFdOpen((thandle_t)fio, "", "r");
+		fio->tif = TIFFFdOpen((thandle_t)fio.get(), "", "r");
 	} else {
 		// mode = "w"	: write Classic TIFF
 		// mode = "w8"	: write Big TIFF
-		fio->tif = TIFFFdOpen((thandle_t)fio, "", "w");
+		fio->tif = TIFFFdOpen((thandle_t)fio.get(), "", "w");
 	}
 	if (!fio->tif) {
-		free(fio);
-		fio = nullptr;
+		fio.reset();
 		FreeImage_OutputMessageProc(s_format_id, "Error while opening TIFF: data is invalid");
 	}
-	return fio;
+	return fio.release();
 }
 
 static void DLL_CALLCONV
 Close(FreeImageIO *io, fi_handle handle, void *data) {
 	if (data) {
-		fi_TIFFIO *fio = (fi_TIFFIO*)data;
+		fi_TIFFIO *fio = static_cast<fi_TIFFIO*>(data);
 		TIFFClose(fio->tif);
-		free(fio);
+		delete fio;
 	}
 }
 

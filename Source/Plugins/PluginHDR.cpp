@@ -363,7 +363,7 @@ rgbe_WritePixels(FreeImageIO *io, fi_handle handle, FIRGBF *data, unsigned numpi
 
 static FIBOOL 
 rgbe_ReadPixels_RLE(FreeImageIO *io, fi_handle handle, FIRGBF *data, int scanline_width, unsigned num_scanlines) {
-	uint8_t rgbe[4], *scanline_buffer{}, *ptr, *ptr_end;
+	uint8_t rgbe[4];
 	int i, count;
 	uint8_t buf[2];
 	
@@ -371,7 +371,7 @@ rgbe_ReadPixels_RLE(FreeImageIO *io, fi_handle handle, FIRGBF *data, int scanlin
 		// run length encoding is not allowed so read flat
 		return rgbe_ReadPixels(io, handle, data, scanline_width * num_scanlines);
 	}
-	std::unique_ptr<void, decltype(&free)> safeScanlineBuffer(nullptr, &free);
+	std::unique_ptr<uint8_t[]> scanline_buffer;
 	// read in each successive scanline 
 	while (num_scanlines > 0) {
 		if (io->read_proc(rgbe, 1, sizeof(rgbe), handle) < 1) {
@@ -387,17 +387,16 @@ rgbe_ReadPixels_RLE(FreeImageIO *io, fi_handle handle, FIRGBF *data, int scanlin
 			return rgbe_Error(rgbe_format_error,"wrong scanline width");
 		}
 		if (!scanline_buffer) {
-			safeScanlineBuffer.reset(malloc(sizeof(uint8_t) * 4 * scanline_width));
-			if (!safeScanlineBuffer) {
+			scanline_buffer.reset(new(std::nothrow) uint8_t[4 * scanline_width]);
+			if (!scanline_buffer) {
 				return rgbe_Error(rgbe_memory_error, "unable to allocate buffer space");
 			}
-			scanline_buffer = static_cast<uint8_t*>(safeScanlineBuffer.get());
 		}
 		
-		ptr = &scanline_buffer[0];
+		uint8_t *ptr{ scanline_buffer.get() };
 		// read each of the four channels for the scanline into the buffer
 		for (i = 0; i < 4; i++) {
-			ptr_end = &scanline_buffer[(i+1)*scanline_width];
+			uint8_t *ptr_end{ &scanline_buffer[(i+1)*scanline_width] };
 			while (ptr < ptr_end) {
 				if (io->read_proc(buf, 1, 2 * sizeof(uint8_t), handle) < 1) {
 					return rgbe_Error(rgbe_read_error, nullptr);
@@ -516,12 +515,11 @@ rgbe_WritePixels_RLE(FreeImageIO *io, fi_handle handle, FIRGBF *data, unsigned s
 		// run length encoding is not allowed so write flat
 		return rgbe_WritePixels(io, handle, data, scanline_width * num_scanlines);
 	}
-	std::unique_ptr<void, decltype(&free)> safeBuffer(malloc(sizeof(uint8_t) * 4 * scanline_width), &free);;
-	if (!safeBuffer) {
+	std::unique_ptr<uint8_t[]> buffer(new(std::nothrow) uint8_t[4 * scanline_width]);;
+	if (!buffer) {
 		// no buffer space so write flat 
 		return rgbe_WritePixels(io, handle, data, scanline_width * num_scanlines);
 	}
-	auto *buffer = static_cast<uint8_t*>(safeBuffer.get());
 
 	while (num_scanlines-- > 0) {
 		rgbe[0] = (uint8_t)2;

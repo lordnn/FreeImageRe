@@ -235,21 +235,20 @@ SupportsNoPixels() {
 static void * DLL_CALLCONV
 Open(FreeImageIO *io, fi_handle handle, FIBOOL read) {
 	// Allocate memory for the header structure
-	auto *lpIH = (ICONHEADER*)malloc(sizeof(ICONHEADER));
+	std::unique_ptr<ICONHEADER, decltype(&free)> lpIH(static_cast<ICONHEADER*>(malloc(sizeof(ICONHEADER))), &free);
 	if (!lpIH) {
 		return nullptr;
 	}
 
 	if (read) {
 		// Read in the header
-		io->read_proc(lpIH, 1, sizeof(ICONHEADER), handle);
+		io->read_proc(lpIH.get(), 1, sizeof(ICONHEADER), handle);
 #ifdef FREEIMAGE_BIGENDIAN
-		SwapIconHeader(lpIH);
+		SwapIconHeader(lpIH.get());
 #endif
 
 		if (!(lpIH->idReserved == 0) || !(lpIH->idType == 1)) {
 			// Not an ICO file
-			free(lpIH);
 			return nullptr;
 		}
 	}
@@ -260,7 +259,7 @@ Open(FreeImageIO *io, fi_handle handle, FIBOOL read) {
 		lpIH->idCount = 0;
 	}
 
-	return lpIH;
+	return lpIH.release();
 }
 
 static void DLL_CALLCONV
@@ -368,16 +367,15 @@ LoadStandardIcon(FreeImageIO *io, fi_handle handle, int flags, FIBOOL header_onl
 		}
 
 		int width_and	= WidthBytes(width);
-		std::unique_ptr<void, decltype(&free)>safeLine(malloc(width_and), &free);
-		if (!safeLine) {
+		std::unique_ptr<uint8_t[]>line_and(new(std::nothrow) uint8_t[width_and]);
+		if (!line_and) {
 			return nullptr;
 		}
-		auto *line_and = static_cast<uint8_t*>(safeLine.get());
 
 		//loop through each line of the AND-mask generating the alpha channel, invert XOR-mask
 		for (int y = 0; y < height; y++) {
 			FIRGBA8 *quad = (FIRGBA8 *)FreeImage_GetScanLine(dib.get(), y);
-			io->read_proc(line_and, width_and, 1, handle);
+			io->read_proc(line_and.get(), width_and, 1, handle);
 			for (int x = 0; x < width; x++) {
 				quad->alpha = (line_and[x>>3] & (0x80 >> (x & 0x07))) != 0 ? 0 : 0xFF;
 				if ( quad->alpha == 0 ) {
@@ -407,15 +405,14 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 
 		if (icon_header) {
 			// load the icon descriptions
-			std::unique_ptr<void, decltype(&free)> safeList(malloc(icon_header->idCount * sizeof(ICONDIRENTRY)), &free);
-			if (!safeList) {
+			std::unique_ptr<ICONDIRENTRY[]> icon_list(new(std::nothrow) ICONDIRENTRY[icon_header->idCount]);
+			if (!icon_list) {
 				return nullptr;
 			}
-			auto *icon_list = static_cast<ICONDIRENTRY*>(safeList.get());
 			io->seek_proc(handle, sizeof(ICONHEADER), SEEK_SET);
-			io->read_proc(icon_list, icon_header->idCount * sizeof(ICONDIRENTRY), 1, handle);
+			io->read_proc(icon_list.get(), icon_header->idCount * sizeof(ICONDIRENTRY), 1, handle);
 #ifdef FREEIMAGE_BIGENDIAN
-			SwapIconDirEntries(icon_list, icon_header->idCount);
+			SwapIconDirEntries(icon_list.get(), icon_header->idCount);
 #endif
 
 			// load the requested icon
@@ -540,12 +537,11 @@ SaveStandardIcon(FreeImageIO *io, FIBITMAP *dib, fi_handle handle) {
 #if defined(FREEIMAGE_BIGENDIAN) || FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_RGB
 	}
 #endif
-	// AND mask
-	std::unique_ptr<void, decltype(&free)>safeMask(malloc(size_and), &free);
-	if (!safeMask) {
+	// empty AND mask
+	std::unique_ptr<uint8_t[]>and_mask(new(std::nothrow) uint8_t[size_and]());
+	if (!and_mask) {
 		return FALSE;
 	}
-	auto *and_mask = static_cast<uint8_t*>(safeMask.get());
 
 	if (FreeImage_IsTransparent(dib)) {
 
@@ -553,10 +549,7 @@ SaveStandardIcon(FreeImageIO *io, FIBITMAP *dib, fi_handle handle) {
 			// create the AND mask from the alpha channel
 
 			int width_and  = WidthBytes(width);
-			uint8_t *and_bits = and_mask;
-
-			// clear the mask
-			memset(and_mask, 0, size_and);
+			uint8_t *and_bits = and_mask.get();
 
 			for (int y = 0; y < height; y++) {
 				FIRGBA8 *bits = (FIRGBA8*)FreeImage_GetScanLine(dib, y);
@@ -577,10 +570,7 @@ SaveStandardIcon(FreeImageIO *io, FIBITMAP *dib, fi_handle handle) {
 			uint8_t *trns = FreeImage_GetTransparencyTable(dib);
 
 			int width_and  = WidthBytes(width);
-			uint8_t *and_bits = and_mask;
-
-			// clear the mask
-			memset(and_mask, 0, size_and);
+			uint8_t *and_bits = and_mask.get();
 
 			switch (FreeImage_GetBPP(dib)) {
 				case 1:
@@ -638,12 +628,8 @@ SaveStandardIcon(FreeImageIO *io, FIBITMAP *dib, fi_handle handle) {
 			}
 		}
 	}
-	else {
-		// empty AND mask
-		memset(and_mask, 0, size_and);
-	}
 
-	io->write_proc(and_mask, size_and, 1, handle);
+	io->write_proc(and_mask.get(), size_and, 1, handle);
 
 	return TRUE;
 }
@@ -705,11 +691,10 @@ Save(FreeImageIO *io, FIBITMAP *dib, fi_handle handle, int page, int flags, void
 		
 		// save the icon descriptions
 
-		std::unique_ptr<void, decltype(&free)> safeList(calloc(icon_header->idCount, sizeof(ICONDIRENTRY)), &free);
-		if (!safeList) {
+		std::unique_ptr<ICONDIRENTRY[]> icon_list(new(std::nothrow) ICONDIRENTRY[icon_header->idCount]);
+		if (!icon_list) {
 			throw FI_MSG_ERROR_MEMORY;
 		}
-		auto *icon_list = static_cast<ICONDIRENTRY*>(safeList.get());
 
 		for (k = 0; k < icon_header->idCount; k++) {
 			icon_dib = vPages[k].get();
@@ -734,7 +719,7 @@ Save(FreeImageIO *io, FIBITMAP *dib, fi_handle handle, int page, int flags, void
 
 		// make a room for icon dir entries, until later update
 		const long directory_start = io->tell_proc(handle);
-		io->write_proc(icon_list, sizeof(ICONDIRENTRY) * icon_header->idCount, 1, handle);
+		io->write_proc(icon_list.get(), sizeof(ICONDIRENTRY) * icon_header->idCount, 1, handle);
 
 		// write the image bits for each image
 		
@@ -764,9 +749,9 @@ Save(FreeImageIO *io, FIBITMAP *dib, fi_handle handle, int page, int flags, void
 		const long current_pos = io->tell_proc(handle);
 		io->seek_proc(handle, directory_start, SEEK_SET);
 #ifdef FREEIMAGE_BIGENDIAN
-		SwapIconDirEntries(icon_list, icon_header->idCount);
+		SwapIconDirEntries(icon_list.get(), icon_header->idCount);
 #endif
-		io->write_proc(icon_list, sizeof(ICONDIRENTRY) * icon_header->idCount, 1, handle);
+		io->write_proc(icon_list.get(), sizeof(ICONDIRENTRY) * icon_header->idCount, 1, handle);
 		io->seek_proc(handle, current_pos, SEEK_SET);
 
 		return TRUE;
