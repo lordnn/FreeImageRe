@@ -266,7 +266,7 @@ static void DLL_CALLCONV
 Close(FreeImageIO *io, fi_handle handle, void *data) {
 	// free the header structure
 	ICONHEADER *lpIH = (ICONHEADER*)data;
-	delete(lpIH);
+	delete lpIH;
 }
 
 // ----------------------------------------------------------
