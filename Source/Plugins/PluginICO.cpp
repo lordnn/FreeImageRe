@@ -235,7 +235,7 @@ SupportsNoPixels() {
 static void * DLL_CALLCONV
 Open(FreeImageIO *io, fi_handle handle, FIBOOL read) {
 	// Allocate memory for the header structure
-	std::unique_ptr<ICONHEADER, decltype(&free)> lpIH(static_cast<ICONHEADER*>(malloc(sizeof(ICONHEADER))), &free);
+	std::unique_ptr<ICONHEADER> lpIH(new(std::nothrow) ICONHEADER);
 	if (!lpIH) {
 		return nullptr;
 	}
@@ -266,7 +266,7 @@ static void DLL_CALLCONV
 Close(FreeImageIO *io, fi_handle handle, void *data) {
 	// free the header structure
 	ICONHEADER *lpIH = (ICONHEADER*)data;
-	free(lpIH);
+	delete(lpIH);
 }
 
 // ----------------------------------------------------------
