@@ -73,7 +73,7 @@ opj_freeimage_stream_create(FreeImageIO *io, fi_handle handle, FIBOOL bRead) {
 	if (!handle) {
 		return nullptr;
 	}
-	auto fio{ std::make_unique<J2KFIO_t>() };
+	std::unique_ptr<J2KFIO_t> fio{ new(std::nothrow) J2KFIO_t };
 	if (fio) {
 		fio->io = io;
 		fio->handle = handle;
