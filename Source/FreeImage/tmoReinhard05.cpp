@@ -23,7 +23,6 @@
 #include "FreeImage.h"
 #include "Utilities.h"
 #include "ToneMapping.h"
-#include <algorithm>
 
 // ----------------------------------------------------------
 // Global and/or local tone mapping operator

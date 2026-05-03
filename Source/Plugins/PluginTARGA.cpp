@@ -107,7 +107,7 @@ static const char *FI_MSG_ERROR_CORRUPTED = "Image data corrupted";
 class TargaThumbnail
 {
 public:
-	TargaThumbnail() : _data(nullptr, &free), _w(0), _h(0), _depth(0) { 
+	TargaThumbnail() : _w(0), _h(0), _depth(0) { 
 	}
 
 	FIBOOL isNull() const {
@@ -119,7 +119,7 @@ public:
 		io->read_proc(&_h, 1, 1, handle);
 
 		const size_t sizeofData = size - 2;
-		_data.reset(malloc(sizeofData));
+		_data.reset(new(std::nothrow) uint8_t[sizeofData]);
 		if (_data) {
 			return (io->read_proc(_data.get(), 1, (unsigned)sizeofData, handle) == sizeofData);
 		}
@@ -133,7 +133,7 @@ public:
 	FIBITMAP* toFIBITMAP();
 
 private:
-	std::unique_ptr<void, decltype(&free)> _data;
+	std::unique_ptr<uint8_t[]> _data;
 	uint8_t _w;
 	uint8_t _h;
 	uint8_t _depth;
@@ -175,7 +175,7 @@ FIBITMAP* TargaThumbnail::toFIBITMAP() {
 		return nullptr;
 	}
 
-	auto *line = static_cast<const uint8_t *>(_data.get());
+	auto *line = _data.get();
 	const uint8_t height = _h;
 	for (uint8_t h = 0; h < height; ++h, line += line_size) {
 		uint8_t* dst_line = FreeImage_GetScanLine(dib, height - 1 - h);

@@ -23,6 +23,7 @@
 
 #include "FreeImage.h"
 #include "Utilities.h"
+#include "yato/types.h"
 
 // ----------------------------------------------------------
 //   Definitions for the RGB 444 format
@@ -632,16 +633,16 @@ LoadRGB(const DDSURFACEDESC2 *desc, FreeImageIO *io, fi_handle handle) {
 	const long delta = (long)filePitch - (long)line;
 
 	if (bpp == 16) {
-		std::unique_ptr<void, decltype(&free)> safePixels(malloc(line * sizeof(uint8_t)), &free);
+		std::unique_ptr<uint8_t[]> safePixels(new(std::nothrow) uint8_t[line]);
 		if (safePixels) {
-			auto *pixels = static_cast<uint8_t*>(safePixels.get());
+			auto *pixels = safePixels.get();
 			for (int y = 0; y < height; y++) {
 				uint8_t *dst_bits = FreeImage_GetScanLine(dib.get(), height - y - 1);
 				// get the 16-bit RGB pixels
 				io->read_proc(pixels, 1, line, handle);
 				io->seek_proc(handle, delta, SEEK_CUR);
 				// convert to 24-bit
-				ConvertLine16To24(dst_bits, (const uint16_t*)pixels, format16, width);
+				ConvertLine16To24(dst_bits, yato::pointer_cast<const uint16_t*>(pixels), format16, width);
 			}
 		}
 	}

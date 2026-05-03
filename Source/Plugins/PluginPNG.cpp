@@ -716,11 +716,10 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 
 			// set the individual row_pointers to point at the correct offsets
 
-			std::unique_ptr<void, decltype(&free)> safeRowPointers(malloc(height * sizeof(png_bytep)), &free);
-			if (!safeRowPointers) {
+			std::unique_ptr<png_bytep[]> row_pointers(new(std::nothrow) png_bytep[height]);
+			if (!row_pointers) {
 				return nullptr;
 			}
-			auto **row_pointers = static_cast<png_bytepp>(safeRowPointers.get());
 
 			// read in the bitmap bits via the pointer table
 			// allow loading of PNG with minor errors (such as images with several IDAT chunks)
@@ -730,7 +729,7 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 			}
 
 			png_set_benign_errors(png_ptr.get(), 1);
-			png_read_image(png_ptr.get(), row_pointers);
+			png_read_image(png_ptr.get(), row_pointers.get());
 
 			// check if the bitmap contains transparency, if so enable it in the header
 
@@ -740,8 +739,7 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 
 			// cleanup
 
-			safeRowPointers.reset();
-			row_pointers = nullptr;
+			row_pointers.reset();
 
 			// read the rest of the file, getting any additional chunks in info_ptr
 

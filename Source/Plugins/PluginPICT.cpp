@@ -594,7 +594,7 @@ Unpack32Bits( FreeImageIO *io, fi_handle handle, FIBITMAP* dib, MacRect* bounds,
 	}
 	
 	// Let's allocate enough for 4 bit planes
-	if (std::unique_ptr<void, decltype(&free)> pLineBuf(malloc(rowBytes), &free); pLineBuf)	{
+	if (std::unique_ptr<uint8_t[]> pLineBuf(new(std::nothrow) uint8_t[rowBytes]); pLineBuf)	{
 		for ( int i = 0; i < height; i++ ) { 
 			// for each line do...
 			int linelen;            // length of source line in bytes.
@@ -604,7 +604,7 @@ Unpack32Bits( FreeImageIO *io, fi_handle handle, FIBITMAP* dib, MacRect* bounds,
 				linelen = Read8( io, handle);
 			}
 
-			uint8_t* pBuf = UnpackPictRow( io, handle, static_cast<uint8_t *>(pLineBuf.get()), width, rowBytes, linelen );
+			uint8_t* pBuf = UnpackPictRow( io, handle, pLineBuf.get(), width, rowBytes, linelen );
 
 			// Convert plane-oriented data into pixel-oriented data &
 			// copy into destination bitmap.

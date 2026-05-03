@@ -41,6 +41,95 @@
 // ----------------------------------------------------------
 
 
+namespace {
+
+template <typename PixelType_, typename BinaryOperation_>
+inline constexpr
+auto PixelReduce(const PixelType_& p, ToValueType<PixelType_> init, BinaryOperation_&& op)
+{
+    constexpr uint32_t channelsNumber = PixelChannelsNumber<PixelType_>::value;
+    if constexpr (channelsNumber > 0) {
+        init = op(std::move(init), GetChannel<0>(p));
+    }
+    if constexpr (channelsNumber > 1) {
+        init = op(std::move(init), GetChannel<1>(p));
+    }
+    if constexpr (channelsNumber > 2) {
+        init = op(std::move(init), GetChannel<2>(p));
+    }
+    if constexpr (channelsNumber > 3) {
+        init = op(std::move(init), GetChannel<3>(p));
+    }
+    return init;
+}
+
+template <typename PixelType_>
+inline constexpr
+auto PixelMin(const PixelType_& p, ToValueType<PixelType_> init = std::numeric_limits<ToValueType<PixelType_>>::max())
+{
+    return PixelReduce(p, init, [](const auto& lhs, const auto& rhs) { return std::min(lhs, rhs); });
+}
+
+template <typename PixelType_>
+inline constexpr
+auto PixelMax(const PixelType_& p, ToValueType<PixelType_> init = std::numeric_limits<ToValueType<PixelType_>>::lowest())
+{
+    return PixelReduce(p, init, [](const auto& lhs, const auto& rhs) { return std::max(lhs, rhs); });
+}
+
+template <typename PixelType_>
+struct ToNoAlphaTypeImpl
+{
+    using type = PixelType_;
+};
+
+template <> struct ToNoAlphaTypeImpl<FIRGBAF>  { using type = FIRGBF; };
+template <> struct ToNoAlphaTypeImpl<FIRGBA32> { using type = FIRGB32; };
+template <> struct ToNoAlphaTypeImpl<FIRGBA16> { using type = FIRGB16; };
+template <> struct ToNoAlphaTypeImpl<FIRGBA8>  { using type = FIRGB8; };
+
+template <typename PixelType_>
+using ToNoAlphaType = typename ToNoAlphaTypeImpl<PixelType_>::type;
+
+template <typename PixelType_>
+inline constexpr
+auto StripAlpha(PixelType_&& p)
+{
+    return ToNoAlphaType<PixelType_>(std::forward<PixelType_>(p));
+}
+
+template <typename Ty_>
+struct ToWiderTypeImpl {};
+
+template <> struct ToWiderTypeImpl<uint64_t> { using type = uint64_t; };
+template <> struct ToWiderTypeImpl<int64_t>  { using type = int64_t; };
+template <> struct ToWiderTypeImpl<uint32_t> { using type = uint64_t; };
+template <> struct ToWiderTypeImpl<int32_t>  { using type = int64_t;  };
+template <> struct ToWiderTypeImpl<uint16_t> { using type = uint32_t; };
+template <> struct ToWiderTypeImpl<int16_t>  { using type = int32_t;  };
+template <> struct ToWiderTypeImpl<uint8_t>  { using type = uint32_t;  };
+template <> struct ToWiderTypeImpl<int8_t>   { using type = int32_t; };
+
+template <typename Ty_>
+using ToWiderType = typename ToWiderTypeImpl<Ty_>::type;
+
+template <typename Ty_>
+struct ToUnsignedTypeImpl {};
+
+template <> struct ToUnsignedTypeImpl<uint64_t> { using type = uint64_t; };
+template <> struct ToUnsignedTypeImpl<int64_t>  { using type = uint64_t; };
+template <> struct ToUnsignedTypeImpl<uint32_t> { using type = uint32_t; };
+template <> struct ToUnsignedTypeImpl<int32_t>  { using type = uint32_t; };
+template <> struct ToUnsignedTypeImpl<uint16_t> { using type = uint16_t; };
+template <> struct ToUnsignedTypeImpl<int16_t>  { using type = uint16_t; };
+template <> struct ToUnsignedTypeImpl<uint8_t>  { using type = uint8_t;  };
+template <> struct ToUnsignedTypeImpl<int8_t>   { using type = uint8_t;  };
+
+template <typename Ty_>
+using ToUnsignedType = typename ToUnsignedTypeImpl<Ty_>::type;
+
+} // unnamed namespace
+
 /** @brief Inverts each pixel data.
 
 @param src Input image to be processed.

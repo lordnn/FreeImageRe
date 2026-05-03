@@ -73,15 +73,15 @@ opj_freeimage_stream_create(FreeImageIO *io, fi_handle handle, FIBOOL bRead) {
 	if (!handle) {
 		return nullptr;
 	}
-	auto *fio = (J2KFIO_t*)malloc(sizeof(J2KFIO_t));
+	std::unique_ptr<J2KFIO_t> fio{ new(std::nothrow) J2KFIO_t };
 	if (fio) {
 		fio->io = io;
 		fio->handle = handle;
 
 		opj_stream_t *l_stream = opj_stream_create(OPJ_J2K_STREAM_CHUNK_SIZE, bRead ? OPJ_TRUE : OPJ_FALSE);
 		if (l_stream) {
-			opj_stream_set_user_data(l_stream, fio, nullptr);
-			opj_stream_set_user_data_length(l_stream, _LengthProc(fio));
+			opj_stream_set_user_data(l_stream, fio.get(), nullptr);
+			opj_stream_set_user_data_length(l_stream, _LengthProc(fio.get()));
 			opj_stream_set_read_function(l_stream, (opj_stream_read_fn)_ReadProc);
 			opj_stream_set_write_function(l_stream, (opj_stream_write_fn)_WriteProc);
 			opj_stream_set_skip_function(l_stream, (opj_stream_skip_fn)_SkipProc);
@@ -89,12 +89,11 @@ opj_freeimage_stream_create(FreeImageIO *io, fi_handle handle, FIBOOL bRead) {
 			fio->stream = l_stream;
 		}
 		else {
-			free(fio);
-			fio = nullptr;
+			fio.reset();
 		}
 	}
 
-	return fio;
+	return fio.release();
 }
 
 void 
@@ -103,7 +102,7 @@ opj_freeimage_stream_destroy(J2KFIO_t* fio) {
 		if (fio->stream) {
 			opj_stream_destroy(fio->stream);
 		}
-		free(fio);
+		delete fio;
 	}
 }
 

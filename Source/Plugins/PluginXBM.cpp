@@ -92,9 +92,9 @@ Read an XBM file into a buffer
 @return Returns NULL if OK, returns an error message otherwise
 */
 static const char* 
-readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::unique_ptr<void, decltype(&free)> &dataP) {
+readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::unique_ptr<uint8_t[]> &dataP) {
 	std::string line(MAX_LINE, '\0'), name(MAX_LINE + 1, '\0');
-	char *ptr{};
+	uint8_t *ptr{};
 	int version = 0;
 	size_t bytes, bytes_per_line, raster_length;
 	int c1, c2, value1, value2;
@@ -162,7 +162,7 @@ readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::u
 	bytes_per_line = (*widthP + 7) / 8 + padding;
 
 	raster_length =  bytes_per_line * *heightP;
-	dataP.reset(malloc(raster_length));
+	dataP.reset(new(std::nothrow) uint8_t[raster_length]);
 	if (!dataP) {
 		return ERR_XBM_MEMORY;
 	}
@@ -195,7 +195,7 @@ readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::u
 	hex_table['f'] = 15;
 
 	if (version == 10) {
-		for (bytes = 0, ptr = static_cast<char *>(dataP.get()); bytes < raster_length; bytes += 2) {
+		for (bytes = 0, ptr = dataP.get(); bytes < raster_length; bytes += 2) {
 			while (( c1 = readChar(io, handle) ) != 'x') {
 				if (c1 == EOF)
 					return( ERR_XBM_EOFREAD );
@@ -215,13 +215,13 @@ readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::u
 			value2 = ( hex_table[c1] << 4 ) + hex_table[c2];
 			if (value2 >= 256)
 				return( ERR_XBM_SYNTAX );
-			*ptr++ = (char)value2;
+			*ptr++ = (uint8_t)value2;
 			if ((!padding) || (( bytes + 2 ) % bytes_per_line))
-				*ptr++ = (char)value1;
+				*ptr++ = (uint8_t)value1;
 		}
 	}
 	else {
-		for (bytes = 0, ptr = static_cast<char *>(dataP.get()); bytes < raster_length; bytes++) {
+		for (bytes = 0, ptr = dataP.get(); bytes < raster_length; bytes++) {
 			/*
 			** skip until digit is found
 			*/
@@ -253,7 +253,7 @@ readXBMFile(FreeImageIO *io, fi_handle handle, int *widthP, int *heightP, std::u
 				}
 				else break;
 			}
-			*ptr++ = (char)value1;
+			*ptr++ = (uint8_t)value1;
 		}
 	}
 
@@ -322,7 +322,7 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 	int width, height;
 
 	try {
-		std::unique_ptr<void, decltype(&free)> buffer(nullptr, &free);
+		std::unique_ptr<uint8_t[]> buffer;
 		// load the bitmap data
 		const char* error = readXBMFile(io, handle, &width, &height, buffer);
 		// Microsoft doesn't implement throw between functions :(
@@ -339,7 +339,7 @@ Load(FreeImageIO *io, fi_handle handle, int page, int flags, void *data) {
 		pal[1].red = pal[1].green = pal[1].blue = 255;
 
 		// copy the bitmap
-		auto *bP = static_cast<uint8_t *>(buffer.get());
+		auto *bP = buffer.get();
 		for (int y = 0; y < height; y++) {
 			uint8_t count = 0;
 			uint8_t mask = 1;

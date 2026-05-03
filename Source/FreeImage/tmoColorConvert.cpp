@@ -23,7 +23,6 @@
 #include "FreeImage.h"
 #include "Utilities.h"
 #include "ToneMapping.h"
-#include <algorithm>
 
 // ----------------------------------------------------------
 // Convert RGB to and from Yxy, same as in Reinhard et al. SIGGRAPH 2002
